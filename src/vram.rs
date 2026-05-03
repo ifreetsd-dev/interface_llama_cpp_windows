@@ -110,7 +110,7 @@ pub fn check_vram_for_config(ctx_size: i32, ngl: i32, cache_k: &str, cache_v: &s
     let ctx_v_mb = (ctx_size as f64 * quant_v / 1024.0 / 1024.0) as u64;
     let activation_mb = (ctx_size as f64 * 1.0 / 1024.0 / 1024.0) as u64;
     
-    let layers_mb = if ngl > 0 { (ngl as u64 * 100) } else { 1500 };
+    let layers_mb = if ngl > 0 { ngl as u64 * 100  } else { 1500 };
     
     let required_mb = ctx_k_mb + ctx_v_mb + activation_mb + layers_mb + 500;
     

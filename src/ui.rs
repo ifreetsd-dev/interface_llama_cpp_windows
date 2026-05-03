@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::config::{AppData, LlamaConfig, RunMode};
 use crate::logger::{self, Level};
 use crate::process::ProcessManager;

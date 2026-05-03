@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::config::{GlobalPaths, LlamaConfig, RunMode};
 use crate::error::{Error, Result};
 use crate::logger;
