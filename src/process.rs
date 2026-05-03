@@ -181,11 +181,23 @@ let prefix = "[CLI]";
             *self.cli_child.lock().unwrap() = Some(child);
         } else {
             let prefix = "[SRV]";
-            let cmd_display = format!("{} --model {} -ngl {} -c {} -t {} --temp {} -n {} --host {} --port {} -np {}",
-                exe, cfg.model_path,
-                if cfg.ngl >= 0 { cfg.ngl.to_string() } else { "all".to_string() },
-                cfg.ctx_size, cfg.threads, cfg.temperature, cfg.max_tokens,
-                cfg.server_host, cfg.server_port, cfg.server_parallel);
+            let extra_display = if !cfg.additional_args.trim().is_empty() {
+                let all_args = cfg.additional_args.replace("\r\n", "\n").replace("\r", "\n");
+                all_args.lines().map(|l| l.trim()).filter(|l| !l.is_empty()).collect::<Vec<_>>().join(" ")
+            } else { String::new() };
+            let cmd_display = if extra_display.is_empty() {
+                format!("{} --model {} -ngl {} -c {} -t {} --temp {} -n {} --host {} --port {} -np {}",
+                    exe, cfg.model_path,
+                    if cfg.ngl >= 0 { cfg.ngl.to_string() } else { "all".to_string() },
+                    cfg.ctx_size, cfg.threads, cfg.temperature, cfg.max_tokens,
+                    cfg.server_host, cfg.server_port, cfg.server_parallel)
+            } else {
+                format!("{} --model {} -ngl {} -c {} -t {} --temp {} -n {} --host {} --port {} -np {} {}",
+                    exe, cfg.model_path,
+                    if cfg.ngl >= 0 { cfg.ngl.to_string() } else { "all".to_string() },
+                    cfg.ctx_size, cfg.threads, cfg.temperature, cfg.max_tokens,
+                    cfg.server_host, cfg.server_port, cfg.server_parallel, extra_display)
+            };
             let _ = log_tx.send(format!("[SRV] Cmd: {}", cmd_display));
             let mut child = cmd.spawn()?;
             let out = child.stdout.take().unwrap();
