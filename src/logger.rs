@@ -2,7 +2,7 @@
 
 use chrono::Local;
 use std::fs::OpenOptions;
-use std::io::Write;
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -25,7 +25,8 @@ pub fn init() {
 
     let file = match OpenOptions::new()
         .create(true)
-        .append(true)
+        .truncate(true)
+        .write(true)
         .open(&log_path) 
     {
         Ok(f) => Some(Box::new(f) as Box<dyn Write + Send>),
@@ -98,6 +99,43 @@ pub fn error(module: &str, err: &impl std::fmt::Display) {
 
 pub fn get_log_path() -> Option<PathBuf> {
     LOG_PATH.lock().ok().and_then(|g| g.as_ref().map(|p| p.clone()))
+}
+
+/// Lit les dernières `max_lines` lignes du fichier journal (lecture depuis la fin)
+pub fn read_log_content(max_lines: usize) -> Vec<String> {
+    let path = match get_log_path() {
+        Some(p) => p,
+        None => return Vec::new(),
+    };
+    let mut file = match std::fs::File::open(&path) {
+        Ok(f) => f,
+        Err(_) => return Vec::new(),
+    };
+    let file_len = match file.seek(SeekFrom::End(0)) {
+        Ok(len) => len,
+        Err(_) => return Vec::new(),
+    };
+    if file_len == 0 {
+        return Vec::new();
+    }
+    // Lire au maximum 64 KB depuis la fin
+    let read_size = std::cmp::min(file_len, 65536);
+    let start = file_len - read_size;
+    if file.seek(SeekFrom::Start(start)).is_err() {
+        return Vec::new();
+    }
+    let mut buf = vec![0u8; read_size as usize];
+    if file.read_exact(&mut buf).is_err() {
+        return Vec::new();
+    }
+    let content = String::from_utf8_lossy(&buf);
+    let lines: Vec<&str> = content.lines().collect();
+    let count = lines.len();
+    if count <= max_lines {
+        lines.iter().map(|l| l.to_string()).collect()
+    } else {
+        lines[count - max_lines..].iter().map(|l| l.to_string()).collect()
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]

@@ -1,4 +1,5 @@
 use crate::error::Result;
+use crate::lang::Lang;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -20,6 +21,8 @@ pub struct AppSettings {
     pub log_warn_enabled: bool,
     #[serde(default = "default_true")]
     pub log_error_enabled: bool,
+    #[serde(default)]
+    pub lang: Lang,
 }
 
 fn default_log_level() -> u8 { 2 }
@@ -34,6 +37,7 @@ impl Default for AppSettings {
             log_info_enabled: true,
             log_warn_enabled: true,
             log_error_enabled: true,
+            lang: Lang::Fr,
         }
     }
 }
@@ -45,6 +49,14 @@ pub struct GlobalPaths {
     pub server_cuda: String,
     pub server_vulkan: String,
     pub model_dir: String,
+    #[serde(default)]
+    pub temp_dir: String,
+    #[serde(default)]
+    pub sauvegardes_dir: String,
+    #[serde(default)]
+    pub cuda_dir: String,
+    #[serde(default)]
+    pub vulkan_dir: String,
 }
 
 impl Default for GlobalPaths {
@@ -53,6 +65,10 @@ impl Default for GlobalPaths {
             cli_cuda: String::new(), cli_vulkan: String::new(),
             server_cuda: String::new(), server_vulkan: String::new(),
             model_dir: String::new(),
+            temp_dir: String::new(),
+            sauvegardes_dir: String::new(),
+            cuda_dir: String::new(),
+            vulkan_dir: String::new(),
         }
     }
 }
@@ -63,17 +79,6 @@ pub struct LlamaConfig {
     pub mode: RunMode,
     pub use_vulkan: bool,
     pub model_path: String,
-    pub ngl: i32,
-    pub ctx_size: i32,
-    pub threads: u32,
-    pub temperature: f32,
-    pub top_p: f32,
-    pub top_k: i32,
-    pub repeat_penalty: f32,
-    pub max_tokens: i32,
-    pub cache_k: String,
-    pub cache_v: String,
-    pub chat_template: String,
     pub additional_args: String,
     pub server_host: String,
     pub server_port: u16,
@@ -84,10 +89,7 @@ impl Default for LlamaConfig {
     fn default() -> Self {
         Self {
             name: "Nouvelle config".into(), mode: RunMode::Cli, use_vulkan: true,
-            model_path: String::new(), ngl: -1, ctx_size: 8192, threads: 8,
-            temperature: 0.7, top_p: 0.9, top_k: 40, repeat_penalty: 1.1,
-            max_tokens: 512, cache_k: "q8_0".into(), cache_v: "q8_0".into(),
-            chat_template: "gemma".into(), additional_args: String::new(),
+            model_path: String::new(), additional_args: String::new(),
             server_host: "127.0.0.1".into(), server_port: 8080, server_parallel: 4,
         }
     }
@@ -99,6 +101,8 @@ pub struct AppData {
     pub configs: HashMap<String, LlamaConfig>,
     pub active_config: Option<String>,
     pub settings: AppSettings,
+    #[serde(default)]
+    pub installed_version: String,
 }
 
 impl AppData {
@@ -109,11 +113,14 @@ impl AppData {
         } else {
             let mut data = Self::default();
             let mut p1 = LlamaConfig::default(); 
-            p1.name = "💬 Chat Rapide".into(); p1.ctx_size = 4096; p1.temperature = 0.6; p1.max_tokens = 1024;
+            p1.name = "💬 Chat Rapide".into();
+            p1.additional_args = "-ngl 35 -t 8 --mlock -c 4096 --temp 0.6 -n 1024".into();
             let mut p2 = LlamaConfig::default(); 
-            p2.name = "💻 Low VRAM".into(); p2.ctx_size = 2048; p2.cache_k = "q4_0".into(); p2.cache_v = "q4_0".into(); p2.max_tokens = 256;
+            p2.name = "💻 Low VRAM".into();
+            p2.additional_args = "-ngl 20 -t 4 --mlock -c 2048 -n 256".into();
             let mut p3 = LlamaConfig::default(); 
-            p3.name = "📜 Contexte Max".into(); p3.ctx_size = 32768; p3.cache_k = "q4_0".into(); p3.cache_v = "q4_0".into();
+            p3.name = "📜 Contexte Max".into();
+            p3.additional_args = "-ngl 20 -t 6 -c 32768".into();
             for p in [p1, p2, p3] { data.configs.insert(p.name.clone(), p); }
             Ok(data)
         }

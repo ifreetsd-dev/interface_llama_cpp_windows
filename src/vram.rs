@@ -82,38 +82,3 @@ pub fn get_vram_usage() -> Result<VramInfo> {
     Ok(info)
 }
 
-pub fn check_vram_for_config(ctx_size: i32, ngl: i32, cache_k: &str, cache_v: &str) -> (bool, u64, u64) {
-    let vram = match get_vram_usage() {
-        Ok(v) => v,
-        Err(_) => return (true, 0, 0),
-    };
-    
-    let quant_k = match cache_k.to_lowercase().as_str() {
-        "q4_0" | "q4_k" => 0.5,
-        "q5_0" | "q5_k" => 0.7,
-        "q8_0" | "q8_k" => 1.0,
-        "f16" => 2.0,
-        "f32" => 4.0,
-        _ => 1.0,
-    };
-    
-    let quant_v = match cache_v.to_lowercase().as_str() {
-        "q4_0" | "q4_k" => 0.5,
-        "q5_0" | "q5_k" => 0.7,
-        "q8_0" | "q8_k" => 1.0,
-        "f16" => 2.0,
-        "f32" => 4.0,
-        _ => 1.0,
-    };
-    
-    let ctx_k_mb = (ctx_size as f64 * quant_k / 1024.0 / 1024.0) as u64;
-    let ctx_v_mb = (ctx_size as f64 * quant_v / 1024.0 / 1024.0) as u64;
-    let activation_mb = (ctx_size as f64 * 1.0 / 1024.0 / 1024.0) as u64;
-    
-    let layers_mb = if ngl > 0 { ngl as u64 * 100  } else { 1500 };
-    
-    let required_mb = ctx_k_mb + ctx_v_mb + activation_mb + layers_mb + 500;
-    
-    let enough = vram.free_mb >= required_mb;
-    (enough, required_mb, vram.free_mb)
-}

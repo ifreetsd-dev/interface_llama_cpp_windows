@@ -1,10 +1,14 @@
 #![windows_subsystem = "windows"]
 
 mod config; 
+mod disk;
+mod downloader;
 mod error;
+mod huggingface;
 mod logger; 
-mod process; 
-mod vram; 
+mod process;
+mod vram;
+mod lang;
 mod ui;
 
 use std::path::PathBuf;
@@ -13,7 +17,7 @@ use ui::LlamaApp;
 fn main() -> eframe::Result<()> {
     logger::init();
 
-    // Runtime Tokio pour l'async
+    // Runtime Tokio multi-threadé (threads de travail en arrière-plan)
     let rt = tokio::runtime::Runtime::new()
         .expect("❌ Échec création runtime Tokio");
     let _guard = rt.enter();
@@ -30,10 +34,9 @@ fn main() -> eframe::Result<()> {
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([1350.0, 900.0])
             .with_title("🦙 Interface - Llama Control Panel")
             .with_resizable(true)
-            .with_app_id("com.interface.llama"),
+            .with_maximized(true),
         ..Default::default()
     };
 
@@ -49,7 +52,6 @@ fn main() -> eframe::Result<()> {
                 Ok(app) => Box::new(app) as Box<dyn eframe::App>,
                 Err(e) => {
                     eprintln!("❌ Panic dans LlamaApp::new(): {:?}", e);
-                    // Fallback: UI minimale pour afficher l'erreur
                     Box::new(ErrorApp { message: format!("Erreur au démarrage: {:?}", e) }) as Box<dyn eframe::App>
                 }
             }

@@ -93,18 +93,7 @@ impl ProcessManager {
         }
 
 let mut cmd = Command::new(exe);
-        cmd.arg("-m").arg(&cfg.model_path);
-
-        if cfg.ngl >= 0 {
-            cmd.arg("-ngl").arg(cfg.ngl.to_string());
-        } else {
-            cmd.arg("-ngl").arg("all");
-        }
-
-        cmd.arg("-c").arg(cfg.ctx_size.to_string())
-           .arg("-t").arg(cfg.threads.to_string())
-           .arg("--temp").arg(cfg.temperature.to_string())
-           .arg("-n").arg(cfg.max_tokens.to_string());
+        cmd.arg("--model").arg(&cfg.model_path);
 
         if !cfg.additional_args.trim().is_empty() {
             let all_args = cfg.additional_args.replace("\r\n", "\n").replace("\r", "\n");
@@ -142,19 +131,8 @@ let mut cmd = Command::new(exe);
         }
 
         let log_tx = self.log_tx.clone();
-        let extra_display = if !cfg.additional_args.trim().is_empty() {
-            let all_args = cfg.additional_args.replace("\r\n", "\n").replace("\r", "\n");
-            all_args.lines().map(|l| l.trim()).filter(|l| !l.is_empty()).collect::<Vec<_>>().join(" ")
-        } else { String::new() };
-        let cmd_display = if extra_display.is_empty() {
-            format!("{} -m {} -ngl {} -c {} -t {} --temp {} -n {}", exe, cfg.model_path,
-                if cfg.ngl >= 0 { cfg.ngl.to_string() } else { "all".to_string() },
-                cfg.ctx_size, cfg.threads, cfg.temperature, cfg.max_tokens)
-        } else {
-            format!("{} -m {} -ngl {} -c {} -t {} --temp {} -n {} {}", exe, cfg.model_path,
-                if cfg.ngl >= 0 { cfg.ngl.to_string() } else { "all".to_string() },
-                cfg.ctx_size, cfg.threads, cfg.temperature, cfg.max_tokens, extra_display)
-        };
+        let cmd_display = format!("{} --model {} {}", exe, cfg.model_path,
+            if cfg.additional_args.is_empty() { String::new() } else { cfg.additional_args.replace("\n", " ") });
         let _ = log_tx.send(format!("[CLI] Cmd: {}", cmd_display));
 
 let prefix = "[CLI]";
@@ -181,23 +159,10 @@ let prefix = "[CLI]";
             *self.cli_child.lock().unwrap() = Some(child);
         } else {
             let prefix = "[SRV]";
-            let extra_display = if !cfg.additional_args.trim().is_empty() {
-                let all_args = cfg.additional_args.replace("\r\n", "\n").replace("\r", "\n");
-                all_args.lines().map(|l| l.trim()).filter(|l| !l.is_empty()).collect::<Vec<_>>().join(" ")
-            } else { String::new() };
-            let cmd_display = if extra_display.is_empty() {
-                format!("{} --model {} -ngl {} -c {} -t {} --temp {} -n {} --host {} --port {} -np {}",
-                    exe, cfg.model_path,
-                    if cfg.ngl >= 0 { cfg.ngl.to_string() } else { "all".to_string() },
-                    cfg.ctx_size, cfg.threads, cfg.temperature, cfg.max_tokens,
-                    cfg.server_host, cfg.server_port, cfg.server_parallel)
-            } else {
-                format!("{} --model {} -ngl {} -c {} -t {} --temp {} -n {} --host {} --port {} -np {} {}",
-                    exe, cfg.model_path,
-                    if cfg.ngl >= 0 { cfg.ngl.to_string() } else { "all".to_string() },
-                    cfg.ctx_size, cfg.threads, cfg.temperature, cfg.max_tokens,
-                    cfg.server_host, cfg.server_port, cfg.server_parallel, extra_display)
-            };
+            let cmd_display = format!("{} --model {} {} --host {} --port {} -np {}",
+                exe, cfg.model_path,
+                if cfg.additional_args.is_empty() { String::new() } else { cfg.additional_args.replace("\n", " ") },
+                cfg.server_host, cfg.server_port, cfg.server_parallel);
             let _ = log_tx.send(format!("[SRV] Cmd: {}", cmd_display));
             let mut child = cmd.spawn()?;
             let out = child.stdout.take().unwrap();
